@@ -1,0 +1,69 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+    "Description": "Creates pipelines and required roles to provide CI/CD for CloudFormation templates",
+	"Parameters":{
+		"BucketName": {
+            "Description": "A unique name for the bucket",
+            "Type": "String",
+			"Default": ""
+        },
+		"TagDescription": {
+			"Description": "A tag description of the S3 Bucket.",
+			"Type": "String"
+		}
+	},
+	"Resources": {
+		"DemoBucket": {
+            "Type": "AWS::S3::Bucket",
+            "Properties": {
+				"BucketName": {
+                    "Ref": "BucketName"
+                 },
+				"BucketEncryption": {
+			    "ServerSideEncryptionConfiguration": [{
+				"ServerSideEncryptionByDefault": {
+				  "SSEAlgorithm": "AES256"
+				}
+			  }]
+			},
+      
+                "AccessControl": "PublicReadWrite",
+				
+                "LifecycleConfiguration": {
+                    "Rules": [
+                        {
+                            "Id": "GlacierRule",
+                            "Prefix": "glacier",
+                            "Status": "Enabled",
+                            "ExpirationInDays": "365",
+                            "Transitions": [
+                                {
+                                  "TransitionInDays": "1",
+                                  "StorageClass": "Glacier"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "VersioningConfiguration": {
+                    "Status": "Enabled"
+                },
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Ref": "BucketName"
+					}
+				},
+				{
+					"Key": "CostCenter",
+					"Value": {
+						"Ref": "TagDescription"
+					}
+				}
+				]
+            }
+        }
+	}
+	
+	
+}

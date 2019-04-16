@@ -1,0 +1,481 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation template to launch EC2 instance",
+  "Parameters": {
+    "KeyName": {
+      "Description": "EC2 Key Pair for SSH Access",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": "pri-demo-wk"
+    },
+    "TagDescription": {
+      "Description": "Cost Center Tag",
+      "Type": "String",
+      "Default": "pri-demo-wk"
+    },
+    "vmDisplayName": {
+      "Description": "VM Display Name",
+      "Type": "String",
+      "Default": "wk-demo-lin"
+    },
+    "ImageId": {
+      "Description": "Ami Id",
+      "Type": "AWS::EC2::Image::Id",
+      "Default": "ami-08bd27442a6c54069"
+    },
+    "SubnetId": {
+      "Description": "Subnet Id",
+      "Type": "AWS::EC2::Subnet::Id",
+      "Default": ""
+    },
+    "VpcId": {
+      "Description": "Vpc Id",
+      "Type": "AWS::EC2::VPC::Id",
+      "Default": ""
+    },
+    "OperatorEmail": {
+      "Description": "Email address to notify if there are any scaling operations",
+      "Type": "String"
+    },
+    "InstanceType": {
+      "Description": "Instance1 EC2 instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "t2.micro",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.medium",
+        "m3.xlarge",
+        "c4.xlarge",
+        "c4.4xlarge",
+        "m3.2xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "cc1.4xlarge",
+        "c4.large",
+        "cc2.8xlarge",
+        "cg1.4xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    }
+  },
+  "Mappings": {
+    "AWSInstanceMapping": {
+      "t2.micro": {
+        "Arch": "64"
+      },
+      "t2.small": {
+        "Arch": "64"
+      },
+      "t2.medium": {
+        "Arch": "64"
+      },
+      "t2.large": {
+        "Arch": "64"
+      },
+      "m3.medium": {
+        "Arch": "64"
+      },
+      "m4.large": {
+        "Arch": "64"
+      },
+      "m4.xlarge": {
+        "Arch": "64"
+      },
+      "m4.2xlarge": {
+        "Arch": "64"
+      }
+    },
+    "InstanceAMI": {
+      "us-west-1": {
+        "64": "ami-08bd27442a6c54069"
+      }
+    }
+  },
+  "Resources": {
+    "LogRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Path": "/",
+        "Policies": [
+          {
+            "PolicyName": "LogRolePolicy",
+            "PolicyDocument": {
+              "Version": "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "logs:Create*",
+                    "logs:PutLogEvents",
+                    "s3:GetObject"
+                  ],
+                  "Resource": [
+                    "arn:aws:logs:*:*:*",
+                    "arn:aws:s3:::*"
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "LogRoleInstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "LogRole"
+          }
+        ]
+      }
+    },
+    "WebServerSecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "Enable HTTP access via port 80 and SSH access via port 22",
+        "VpcId": {
+          "Ref": "VpcId"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+    "WebServerHost": {
+      "Type": "AWS::EC2::Instance",
+      "Metadata": {
+        "Comment": "Install a simple PHP application",
+        "AWS::CloudFormation::Init": {
+          "config": {
+            "packages": {
+              "yum": {
+                "httpd": [],
+                "php": []
+              }
+            },
+            "files": {
+              "/tmp/cwlogs/apacheaccess.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[general]\n",
+                      "state_file= /var/awslogs/agent-state\n",
+                      "[/var/log/httpd/access_log]\n",
+                      "file = /var/log/httpd/access_log\n",
+                      "log_group_name = ",
+                      {
+                        "Ref": "WebServerLogGroup"
+                      },
+                      "\n",
+                      "log_stream_name = {instance_id}/apache.log\n",
+                      "datetime_format = %d/%b/%Y:%H:%M:%S"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "apache",
+                "group": "apache"
+              },
+              "/var/www/html/index.php": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "<?php\n",
+                      "echo '<h1>AWS CloudFormation sample PHP application</h1>';\n",
+                      "?>\n"
+                    ]
+                  ]
+                },
+                "mode": "000644",
+                "owner": "apache",
+                "group": "apache"
+              },
+              "/etc/cfn/cfn-hup.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[main]\n",
+                      "stack=",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      "\n",
+                      "region=",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n"
+                    ]
+                  ]
+                },
+                "mode": "000400",
+                "owner": "root",
+                "group": "root"
+              },
+              "/etc/cfn/hooks.d/cfn-auto-reloader.conf": {
+                "content": {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "[cfn-auto-reloader-hook]\n",
+                      "triggers=post.update\n",
+                      "path=Resources.WebServerHost.Metadata.AWS::CloudFormation::Init\n",
+                      "action=/opt/aws/bin/cfn-init -s ",
+                      {
+                        "Ref": "AWS::StackId"
+                      },
+                      " -r WebServerHost ",
+                      " --region     ",
+                      {
+                        "Ref": "AWS::Region"
+                      },
+                      "\n",
+                      "runas=root\n"
+                    ]
+                  ]
+                }
+              }
+            },
+            "services": {
+              "sysvinit": {
+                "httpd": {
+                  "enabled": "true",
+                  "ensureRunning": "true"
+                },
+                "sendmail": {
+                  "enabled": "false",
+                  "ensureRunning": "false"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Properties": {
+        "KeyName": {
+          "Ref": "KeyName"
+        },
+        "InstanceType": {
+          "Ref": "InstanceType"
+        },
+        "ImageId": {
+          "Ref": "ImageId"
+        },
+        "SubnetId": {
+          "Ref": "SubnetId"
+        },
+		"Tags": [
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "TagDescription"
+            }
+          },
+          {
+            "Key": "Name",
+            "Value": {
+              "Ref": "vmDisplayName"
+            }
+          }
+        ],
+        "Monitoring": true,
+        "SecurityGroupIds": [
+          {
+            "Fn::GetAtt": [
+              "WebServerSecurityGroup",
+              "GroupId"
+            ]
+          }
+        ],
+        "IamInstanceProfile": {
+          "Ref": "LogRoleInstanceProfile"
+        },
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+                "#!/bin/bash\n",
+                "/bin/echo \"Cloud Watch Agent Installation\" >> /tmp/test.txt\n",
+                "#Installing wget\n",
+                "sudo su\n",
+                "yum install wget -y\n",
+                "## Install EPEL\n",
+                "rpm -Uvh https://dl.fedoraproject.org/pub/epel/7/x86_64/Packages/e/epel-release-7-11.noarch.rpm\n",
+                "# Installing CFN-init \n",
+                "yum -y install python-pip",
+                "\n",
+                "/usr/bin/easy_install --script-dir /opt/aws/bin https://s3.amazonaws.com/cloudformation-examples/aws-cfn-bootstrap-latest.tar.gz\n",
+                "/opt/aws/bin/cfn-init -s ",
+                {
+                  "Ref": "AWS::StackId"
+                },
+                " -r WebServerHost ",
+                " --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " || error_exit 'Failed to run cfn-init'\n",
+                "# Start up the cfn-hup daemon to listen for changes to the EC2 instance metadata\n",
+                "/opt/aws/bin/cfn-hup || error_exit 'Failed to start cfn-hup'\n",
+                "# Get the CloudWatch Logs agent\n",
+                "wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py\n",
+                "# Install the CloudWatch Logs agent\n",
+                "python awslogs-agent-setup.py -n -r ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                " -c /tmp/cwlogs/apacheaccess.conf || error_exit 'Failed to run CloudWatch Logs agent setup'\n",
+                "# All done so signal success\n",
+                "/opt/aws/bin/cfn-signal -e $? ",
+                "         --stack ",
+                {
+                  "Ref": "AWS::StackName"
+                },
+                "         --resource WebServerHost ",
+                "         --region ",
+                {
+                  "Ref": "AWS::Region"
+                },
+                "\n"
+              ]
+            ]
+          }
+        }
+      }
+    },
+    "WebServerLogGroup": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "RetentionInDays": 7
+      }
+    },
+    "404MetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "WebServerLogGroup"
+        },
+        "FilterPattern": "[ip, identity, user_id, timestamp, request, status_code = 404, size, ...]",
+        "MetricTransformations": [
+          {
+            "MetricValue": "1",
+            "MetricNamespace": "test/404s",
+            "MetricName": "test404Count"
+          }
+        ]
+      }
+    },
+    "BytesTransferredMetricFilter": {
+      "Type": "AWS::Logs::MetricFilter",
+      "Properties": {
+        "LogGroupName": {
+          "Ref": "WebServerLogGroup"
+        },
+        "FilterPattern": "[ip, identity, user_id, timestamp, request, status_code, size, ...]",
+        "MetricTransformations": [
+          {
+            "MetricValue": "$size",
+            "MetricNamespace": "test/BytesTransferred",
+            "MetricName": "testBytesTransferred"
+          }
+        ]
+      }
+    },
+    "404Alarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "The number of 404s is greater than 2 over 2 minutes",
+        "MetricName": "test404Count",
+        "Namespace": "test/404s",
+        "Statistic": "Sum",
+        "Period": "60",
+        "EvaluationPeriods": "2",
+        "Threshold": "2",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    },
+    "BandwidthAlarm": {
+      "Type": "AWS::CloudWatch::Alarm",
+      "Properties": {
+        "AlarmDescription": "The average volume of traffic is greater 3500 KB over 10 minutes",
+        "MetricName": "testBytesTransferred",
+        "Namespace": "test/BytesTransferred",
+        "Statistic": "Average",
+        "Period": "300",
+        "EvaluationPeriods": "2",
+        "Threshold": "3500",
+        "AlarmActions": [
+          {
+            "Ref": "AlarmNotificationTopic"
+          }
+        ],
+        "ComparisonOperator": "GreaterThanThreshold"
+      }
+    },
+    "AlarmNotificationTopic": {
+      "Type": "AWS::SNS::Topic",
+      "Properties": {
+        "Subscription": [
+          {
+            "Endpoint": {
+              "Ref": "OperatorEmail"
+            },
+            "Protocol": "email"
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceId": {
+      "Description": "InstanceId of the newly created instance",
+      "Value": {
+        "Ref": "WebServerHost"
+      }
+    }
+  }
+}

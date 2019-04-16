@@ -1,0 +1,43 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "To create a VPC",
+
+	"Parameters": {
+		"VNetworkCIDR": {
+			"Description": "CIDR for VPC Network",
+			"Type": "String",
+			"Default": "10.100.0.0/16",
+			"AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription": "Must be a valid IP CIDR range of the form x.x.x.x/x."
+		},
+		"VPCName": {
+			"Type": "String",
+			"Default": ""
+		},
+		
+		"CostCenter": {
+			"Type": "String",
+			"Default": ""
+		}
+	},
+	"Resources": {
+		"VPCProd": {
+			"Type": "AWS::EC2::VPC",
+			"Properties": {
+				"CidrBlock": {
+					"Ref": "VNetworkCIDR"
+				},
+				"Tags" : [ {"Key" : "Name", "Value" : {"Ref": "VPCName"} }, {"Key" : "CostCenter", "Value" : {"Ref": "CostCenter"} }] 
+
+			}
+		}
+	},
+	"Outputs": {
+                                "VPCId": {
+                                                "Description": "VPCID which is created",
+                                                "Value": {
+                                                                "Ref": "VPCProd"
+                                                }
+                                }
+                }
+}

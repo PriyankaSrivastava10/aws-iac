@@ -1,0 +1,275 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": " RDS-sqlserver-se",
+	"Parameters": {
+		
+		"DBUser": {
+			"Description": "The database admin account username",
+			"Type": "String",
+			"MinLength": "1",
+			"MaxLength": "16",
+			"AllowedPattern": "[a-zA-Z][a-zA-Z0-9]*",
+			"ConstraintDescription": "Must begin with a letter and contain only alphanumeric characters.",
+			"Default": "testuser"
+		},
+		"DBPassword": {
+			"NoEcho": "true",
+			"Description": "The database admin account password",
+			"Type": "String",
+			"MinLength": "8",
+			"MaxLength": "41",
+			"Default": "admin123",
+			"AllowedPattern": "[a-zA-Z0-9]*",
+			"ConstraintDescription": "Must contain only alphanumeric characters."
+		},
+		"DBAllocatedStorage": {
+			"Description": "The size of the database (Gb)",
+			"Type": "Number",
+			"MinValue": "20",
+			"MaxValue": "16384",
+			"Default": "200",
+			"ConstraintDescription": "Must be between 20 and 16384."
+		},
+		"DBPort": {
+			"Description": "DB listening port",
+			"Type": "Number",
+			"Default": "1433",
+			"MinValue": "1150",
+			"MaxValue": "65535"
+		},
+		"DBBackupRetention": {
+			"Description": "The No. of Days to keep backup",
+			"Type": "Number",
+			"MinValue": "0",
+			"MaxValue": "35",
+			"Default": "7",
+			"ConstraintDescription": "Must be between 0 and 7"
+		},
+		"DBInstanceClass": {
+			"Description": "The database instance type",
+			"Type": "String",
+			"Default": "db.m4.xlarge",
+			"AllowedValues": [
+				
+				"db.m4.xlarge",
+				"db.m4.2xlarge",
+				"db.m4.4xlarge",
+				"db.m4.10xlarge",
+				"db.m4.16xlarge",
+				"db.r3.large",
+				"db.r3.xlarge",
+				"db.r3.2xlarge",
+				"db.r3.4xlarge",
+				"db.r3.8xlarge",
+				"db.r3.16xlarge"
+				
+			],
+			"ConstraintDescription": "Must select a valid database instance type."
+		},
+		"PubliclyAccessible": {
+			"Description": "Create a Publically Accessible RDS database instance",
+			"Default": "false",
+			"Type": "String",
+			"AllowedValues": [
+				"true",
+				"false"
+			],
+
+			"ConstraintDescription": "Must be either true or false."
+		},
+		"MultiAZ": {
+			"Description": "Create a multi-AZ RDS database instance",
+			"Type": "String",
+			"Default": "false",
+			"AllowedValues": [
+				"true",
+				"false"
+			],
+			"ConstraintDescription": "Must be either true or false."
+		},
+		"MinorUpgrade": {
+			"Default": "true",
+			"Description": "Minor upgrade engines applied",
+			"Type": "String",
+			"AllowedValues": [
+				"true",
+				"false"
+			],
+			"ConstraintDescription": "Must be either true or false."
+		},
+		"TagDescription": {
+			"Description": "A tag description of the RDS instance.",
+			"Type": "String"
+		},
+		"RDSDeletionPolicy": {
+			"Description": "Decides whether to delete or snapshot the DB instance on environment termination",
+			"Type": "String",
+			"Default": "Snapshot",
+			"AllowedValues": [
+				"Delete",
+				"Snapshot"
+			]
+		},
+		"RDSDBEngine": {
+			"Description": "The name of the database engine to use for this instance",
+			"Type": "String",
+			"Default": "sqlserver-se"
+		},
+		"RDSDBEngineVer": {
+			"Description": "The version number of the database engine",
+			"Type": "String",
+			"Default": "14.00.3015.40.v1"
+		},
+		"DBInstanceIdentifier": {
+			"Description": "Specify a name that is unique for all DB instances owned by your AWS account in the current region.",
+			"Type": "String",
+			"Default": "mysqlserverse"
+		},
+		"VPCId": {
+			"Type": "AWS::EC2::VPC::Id",
+			"Default": "",
+			"Description": "Existing VPC's ID available in RDS"
+		},
+		"PrivateSubnetList": {
+			"Type": "List<AWS::EC2::Subnet::Id>",
+			"Description": "The list of SubnetIds in your Virtual Private Cloud (VPC)",
+			"ConstraintDescription": "must be a list of an existing subnets in the selected Virtual Private Cloud.",
+			"Default": ""
+		},
+		
+		"SecurityGroupList": {
+			"Type": "List<AWS::EC2::SecurityGroup::Id>",
+			"Description": "AWS Security Group",
+			"Default": ""
+		},
+		"Iops":{"Description": "IOPS ",
+			"Type": "String",
+			"Default": "1000"
+			
+		
+	},"LicenseModel":{"Description": "License Model ",
+			"Type": "String",
+			"Default":"license-included",
+		"AllowedValues": ["license-included"]
+			}
+		
+	},
+	"Rules": {
+		"SubnetsInVPC": {
+			"Assertions": [{
+				"Assert": {
+					"Fn::EachMemberIn": [{
+							"Fn::ValueOfAll": [
+								"AWS::EC2::Subnet::Id",
+								"VpcId"
+							]
+						},
+						{
+							"Fn::RefAll": "AWS::EC2::VPC::Id"
+						}
+					]
+				},
+				"AssertDescription": "All subnets must in the VPC"
+			}]
+		}
+	},
+	"Resources": {
+		"MyDBSubnetGroup": {
+			"Type": "AWS::RDS::DBSubnetGroup",
+			"Properties": {
+				"DBSubnetGroupDescription": "Subnets available for the RDS DB Instance",
+				"SubnetIds": {"Ref" : "PrivateSubnetList"}
+				
+				
+				
+
+
+			}
+		},
+		"masterDB": {
+			"Type": "AWS::RDS::DBInstance",
+			"Properties": {
+				"Engine": {
+					"Ref": "RDSDBEngine"
+				},
+				"EngineVersion": {
+					"Ref": "RDSDBEngineVer"
+				},
+				"DBInstanceClass": {
+					"Ref": "DBInstanceClass"
+				},
+				"DBInstanceIdentifier": {
+					"Ref": "DBInstanceIdentifier"
+				},
+				"MasterUsername": {
+					"Ref": "DBUser"
+				},
+				"MasterUserPassword": {
+					"Ref": "DBPassword"
+				},
+				"AllocatedStorage": {
+					"Ref": "DBAllocatedStorage"
+				},
+				"BackupRetentionPeriod": {
+					"Ref": "DBBackupRetention"
+				},
+				"MultiAZ": {
+					"Ref": "MultiAZ"
+				},
+				"VPCSecurityGroups": 
+				{"Ref" : "SecurityGroupList"}
+					
+				,
+				"PubliclyAccessible": {
+					"Ref": "PubliclyAccessible"
+				},
+				
+				"Port": {
+					"Ref": "DBPort"
+				},
+				"AutoMinorVersionUpgrade": {
+					"Ref": "MinorUpgrade"
+				},
+				"DBSubnetGroupName": {
+					"Ref": "MyDBSubnetGroup"
+				},
+				"Iops":{
+					"Ref": "Iops"
+				},
+				"LicenseModel":
+					{"Ref":"LicenseModel"}
+				,
+				"Tags": [{
+					"Key": "Name",
+					"Value": {
+						"Ref": "DBInstanceIdentifier"
+					}
+				},
+				{
+					"Key": "CostCenter",
+					"Value": {
+						"Ref": "TagDescription"
+					}
+				}
+				]
+			}
+		}
+	},
+	"Outputs": {
+		"JDBCConnectionString": {
+			"Description": "JDBC connection string for database",
+			"Value": {
+				"Fn::Join": ["", ["jdbc:sql://",
+					{
+						"Fn::GetAtt": ["masterDB", "Endpoint.Address"]
+					},
+					":",
+					{
+						"Fn::GetAtt": ["masterDB", "Endpoint.Port"]
+					},
+					"/"
+				]]
+			}
+		}
+	}
+}

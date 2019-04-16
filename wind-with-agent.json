@@ -1,0 +1,201 @@
+{
+   "AWSTemplateFormatVersion": "2010-09-09",
+   "Description": "AWS CloudFormation template to launch EC2 instance",
+  "Parameters": {
+    "KeyName": {
+      "Description": "EC2 Key Pair for SSH Access",
+      "Type": "AWS::EC2::KeyPair::KeyName",
+      "Default": "pri-demo-wk"
+
+    },
+    "winImageId": {
+      "Description": "Ami Id",
+      "Type": "AWS::EC2::Image::Id",
+      "Default": "ami-07c691b9c024c63b3"
+    },
+    "TagDescription": {
+      "Description": "A tag description of the EC2 instance.",
+      "Type": "String"
+    },
+    "vmDisplayName": {
+      "Description": "VM Display Name.",
+      "Type": "String"
+    },
+    "wkSubnetId": {
+      "Description": "Subnet Id",
+      "Type": "AWS::EC2::Subnet::Id",
+      "Default": "ami-0650427f8b0cfaa7a"
+    },
+    "winInstanceType": {
+      "Description": "Instance1 EC2 instance type",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "t2.micro",
+        "m1.small",
+        "m1.medium",
+        "m1.large",
+        "m1.xlarge",
+        "m2.xlarge",
+        "m2.2xlarge",
+        "m2.4xlarge",
+        "m3.medium",
+        "m3.xlarge",
+        "c4.xlarge",
+        "c4.4xlarge",
+        "m3.2xlarge",
+        "c1.medium",
+        "c1.xlarge",
+        "cc1.4xlarge",
+        "c4.large",
+        "cc2.8xlarge",
+        "cg1.4xlarge"
+      ],
+      "ConstraintDescription": "must be a valid EC2 instance type."
+    }
+  },
+   "Mappings": {
+      "AWSInstanceMapping": {
+         "t2.micro": {
+            "Arch": "64"
+         },
+         "t2.small": {
+            "Arch": "64"
+         },
+         "t2.medium": {
+            "Arch": "64"
+         },
+         "t2.large": {
+            "Arch": "64"
+         },
+         "m3.medium": {
+            "Arch": "64"
+         },
+         "m4.large": {
+            "Arch": "64"
+         },
+         "m4.xlarge": {
+            "Arch": "64"
+         },
+         "m4.2xlarge": {
+            "Arch": "64"
+         }
+      },
+      "InstanceAMI": {
+         "us-west-1": {
+            "64": "ami-08bd27442a6c54069"
+         }
+      }
+   },
+   "Resources": {
+      "wkInstance": {
+         "Type": "AWS::EC2::Instance",
+		 "Metadata" : {
+        "AWS::CloudFormation::Init" : {
+          "configSets" : {
+            "config" : [
+              "prepare",
+              "location",
+			  "installation"
+            ]
+          },
+		  
+		   "prepare" : {
+				"commands" : {
+					"1" : {
+			
+			"command" :	"powershell.exe -Command wget https://s3.amazonaws.com/amazoncloudwatch-agent/windows/amd64/latest/amazon-cloudwatch-agent.msi -OutFile c:\\cfn\\amazon-cloudwatch-agent.msi",
+			"waitAfterCompletion" : "150"
+			}}
+			},
+			"location" : {
+				"commands" : {
+					"2" : {
+						"command" : "powershell.exe -Command cd c:\\cfn",
+						"waitAfterCompletion" : "5"
+			}}
+			},
+			"installation" : {
+				"commands" : {
+					"3" : {
+					"command" : "powershell.exe -Command msiexec /i amazon-cloudwatch-agent.msi",
+					"waitAfterCompletion" : "150"
+			}
+			}}
+			}},
+			
+					
+         "Properties": {
+            "KeyName": {
+               "Ref": "KeyName"
+            },
+            "InstanceType": {
+               "Ref": "winInstanceType"
+            },
+            "ImageId": {
+               "Ref": "winImageId"
+            },
+			"SubnetId": {
+				 "Ref": "wkSubnetId"
+			},
+			"Monitoring": true,
+			
+			"UserData": {
+					  "Fn::Base64": {
+						"Fn::Join": [
+						  "",
+						  [
+							"<script>\n",
+							"cfn-init.exe -v -c config -s ", { "Ref" : "AWS::StackName" },
+							" -r wkInstance",
+							" --region ", { "Ref" : "AWS::Region" }, "\n",
+							"cfn-signal.exe -e %ERRORLEVEL% ", { "Fn::Base64" : { "Ref" : "EC2InstanceWaitHandle" }}, "\n",
+							"</script>"
+						  ]
+						]
+					  }
+    },
+
+          "Tags": [
+            {
+              "Key": "CostCenter",
+              "Value": {
+                "Ref": "TagDescription"
+              }
+            },
+            {
+              "Key": "Name",
+              "Value": {
+                "Ref": "vmDisplayName"
+              }
+            }
+          ]
+				
+      
+   }
+   },
+   
+   "EC2InstanceWaitHandle" : {
+				"Type" : "AWS::CloudFormation::WaitConditionHandle"
+			},
+			
+			 "EC2InstanceWaitCondition" : {
+				"Type" : "AWS::CloudFormation::WaitCondition",
+				"DependsOn" : "wkInstance",
+				"Properties" : {
+					"Handle" : { "Ref" : "EC2InstanceWaitHandle" },
+					"Timeout" : "3600"
+			}
+			}
+			},
+	
+   
+   "Outputs": {
+      "InstanceId": {
+         "Description": "InstanceId of the newly created instance",
+         "Value": {
+            "Ref": "wkInstance"
+         }
+      }
+   }
+}

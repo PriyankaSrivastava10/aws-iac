@@ -1,0 +1,146 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Template creates a Network Load Balancer",
+  "Parameters": {
+    "vpcId": {
+      "Type": "AWS::EC2::VPC::Id",
+      "Default": ""
+    },
+    "TagDescription": {
+      "Description": "A tag description of the NLB.",
+      "Type": "String"
+    },
+    "nlbName": {
+      "Description": "Name of NLB",
+      "Type": "String"
+    },
+    "nlbtargetgroupname": {
+      "Description": "Name of NLB",
+      "Type": "String"
+    },
+    "Subnet": {
+      "Type": "List<AWS::EC2::Subnet::Id>",
+      "Default": ""
+    },
+    "HostIp1": {
+      "Type": "String",
+      "Default": "192.168.4.98"
+    },
+    "HostIp2": {
+      "Type": "String",
+      "Default": "192.168.4.180"
+    },
+    "Port": {
+      "Type": "String",
+      "Default": "80"
+    },
+    "Protocol": {
+      "Type": "String",
+      "Default": "TCP"
+    }
+  },
+  "Resources": {
+    "ServiceNetworkLoadBalancer": {
+      "Type": "AWS::ElasticLoadBalancingV2::LoadBalancer",
+      "Properties": {
+        "Name": {
+          "Ref": "nlbName"
+        },
+        "Type": "network",
+        "LoadBalancerAttributes": [
+          {
+            "Key": "load_balancing.cross_zone.enabled",
+            "Value": true
+          }
+        ],
+        "Scheme": "internal",
+        "Subnets": {
+          "Ref": "Subnet"
+        },
+        "Tags": [
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "TagDescription"
+            }
+          }
+        ]
+      }
+    },
+    "DemoListener": {
+      "Type": "AWS::ElasticLoadBalancingV2::Listener",
+      "Properties": {
+        "DefaultActions": [
+          {
+            "Type": "forward",
+            "TargetGroupArn": {
+              "Ref": "NLBTargetGroup"
+            }
+          }
+        ],
+        "LoadBalancerArn": {
+          "Ref": "ServiceNetworkLoadBalancer"
+        },
+        "Port": {
+          "Ref": "Port"
+        },
+        "Protocol": {
+          "Ref": "Protocol"
+        }
+      }
+    },
+    "NLBTargetGroup": {
+      "Type": "AWS::ElasticLoadBalancingV2::TargetGroup",
+      "Properties": {
+        "Name": {
+          "Ref": "nlbtargetgroupname"
+        },
+        "TargetType": "ip",
+        "Protocol": {
+          "Ref": "Protocol"
+        },
+        "Port": {
+          "Ref": "Port"
+        },
+        "VpcId": {
+          "Ref": "vpcId"
+        },
+        "TargetGroupAttributes": [
+          {
+            "Key": "deregistration_delay.timeout_seconds",
+            "Value": 20
+          }
+        ],
+        "Targets": [
+          {
+            "Id": {
+              "Ref": "HostIp1"
+            },
+            "Port": 80
+          },
+          {
+            "Id": {
+              "Ref": "HostIp2"
+            },
+            "Port": 80
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "CostCenter",
+            "Value": {
+              "Ref": "TagDescription"
+            }
+          }
+        ]
+      }
+    }
+  },
+  "Outputs": {
+    "VpcId": {
+      "Value": {
+        "Ref": "vpcId"
+      }
+    }
+  }
+}

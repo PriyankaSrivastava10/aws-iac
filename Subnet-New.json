@@ -1,0 +1,64 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "To create subnet in a VPC",
+
+	"Parameters": {
+
+		"VpcID": {
+			"Description": "The VPC ID in which you want to deploy subnet",
+			"Type": "String",
+			"Default": ""
+		},
+		"AvailabiltyZone": {
+			"Description": "AZ in which you want to deploy subnet",
+			"Type": "String",
+			"Default": ""
+		},
+
+		"SubnetCIDR": {
+			"Description": "Subnet CIDR block",
+			"Type": "String",
+			"Default": "10.100.1.0/24",
+			"AllowedPattern": "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+			"ConstraintDescription": "Must be a valid IP CIDR range of the form x.x.x.x/x and subnet of pVpc."
+		},
+		"SubnetName": {
+			"Type": "String",
+			"Default": ""
+		},
+		
+		"CostCenter": {
+			"Type": "String",
+			"Default": ""
+		}
+		
+		
+	},
+	"Resources": {
+		"SubnetPublic": {
+			"Type": "AWS::EC2::Subnet",
+			"Properties": {
+				"VpcId": {
+					"Ref": "VpcID"
+				},
+				"CidrBlock": {
+					"Ref": "SubnetCIDR"
+				},
+				"AvailabilityZone": {
+					"Ref": "AvailabiltyZone"
+				},
+				"Tags" : [ {"Key" : "Name", "Value" : {"Ref": "SubnetName"} }, {"Key" : "CostCenter", "Value" : {"Ref": "CostCenter"} }] 
+
+			}
+		}
+	},
+
+	"Outputs": {
+		"SubnetId": {
+			"Description": "Subnet ID is: ",
+			"Value": {
+				"Ref": "SubnetPublic"
+			}
+		}
+	}
+}

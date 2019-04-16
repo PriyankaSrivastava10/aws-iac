@@ -1,0 +1,132 @@
+{
+   "AWSTemplateFormatVersion": "2010-09-09",
+   "Description": "AWS CloudFormation template to launch EC2 instance",
+   "Parameters": {
+      "KeyName": {
+         "Description": "EC2 Key Pair for SSH Access",
+		 "Type": "AWS::EC2::KeyPair::KeyName",
+         "Default": "pri-demo-wk"
+         
+      },
+	  "ImageId": {
+         "Description": "Ami Id",
+		 "Type": "AWS::EC2::Image::Id",
+         "Default": "ami-08bd27442a6c54069"
+      },
+	  "vmDisplayName": {
+         "Description": "VM Display Name For Tag",
+		 "Type": "String",
+         "Default": "WK-Demo-1"
+      },
+	  "TagDescription": {
+			"Description": "A tag description of the EC2 instance.",
+			"Type": "String"
+		},
+	  "SubnetId": {
+         "Description": "Subnet Id",
+		 "Type": "AWS::EC2::Subnet::Id",
+         "Default": ""
+      },
+      "InstanceType": {
+         "Description": "Instance1 EC2 instance type",
+         "Type": "String",
+         "Default": "t2.micro",
+         "AllowedValues": [
+            "t2.micro",
+            "m1.small",
+            "m1.medium",
+            "m1.large",
+            "m1.xlarge",
+            "m2.xlarge",
+            "m2.2xlarge",
+            "m2.4xlarge",
+            "m3.medium",
+            "m3.xlarge",
+            "c4.xlarge",
+            "c4.4xlarge",
+            "m3.2xlarge",
+            "c1.medium",
+            "c1.xlarge",
+            "cc1.4xlarge",
+            "c4.large",
+            "cc2.8xlarge",
+            "cg1.4xlarge"
+         ],
+         "ConstraintDescription": "must be a valid EC2 instance type."
+      }
+   },
+   "Mappings": {
+      "AWSInstanceMapping": {
+         "t2.micro": {
+            "Arch": "64"
+         },
+         "t2.small": {
+            "Arch": "64"
+         },
+         "t2.medium": {
+            "Arch": "64"
+         },
+         "t2.large": {
+            "Arch": "64"
+         },
+         "m3.medium": {
+            "Arch": "64"
+         },
+         "m4.large": {
+            "Arch": "64"
+         },
+         "m4.xlarge": {
+            "Arch": "64"
+         },
+         "m4.2xlarge": {
+            "Arch": "64"
+         }
+      },
+      "InstanceAMI": {
+         "us-west-1": {
+            "64": "ami-08bd27442a6c54069"
+         }
+      }
+   },
+   "Resources": {
+      "Instance": {
+         "Type": "AWS::EC2::Instance",
+         "Properties": {
+            "KeyName": {
+               "Ref": "KeyName"
+            },
+            "InstanceType": {
+               "Ref": "InstanceType"
+            },
+            "ImageId": {
+               "Ref": "ImageId"
+            },
+			"SubnetId": {
+				 "Ref": "SubnetId"
+			},
+			"Monitoring": true,
+			"Tags": [{
+					"Key": "CostCenter",
+					"Value": {
+						"Ref": "TagDescription"
+					}
+				},
+				{
+					"Key": "Name",
+					"Value": {
+						"Ref": "vmDisplayName"
+					}
+				}
+				]
+         }
+      }
+   },
+   "Outputs": {
+      "InstanceId": {
+         "Description": "InstanceId of the newly created instance",
+         "Value": {
+            "Ref": "Instance"
+         }
+      }
+   }
+}
